@@ -4,6 +4,7 @@ using Serilog.Events;
 using VillaApi.Services;
 using VillaApi.Models;
 using System.Reflection;
+using VillaApi.Config;
 
 namespace VillaApi;
 
@@ -13,18 +14,22 @@ class Program
     {
         var builder = WebApplication.CreateBuilder(args);
         {
-            builder.Host.UseSerilog();
             ConfigureServices(builder);
-            var logger = Log.Logger = new LoggerConfiguration()
+
+            // Configure Serilog
+            Log.Logger = new LoggerConfiguration()
                 .MinimumLevel.Debug()
                 .MinimumLevel.Override("Microsoft", LogEventLevel.Information)
                 .MinimumLevel.Override("Microsoft.EntityFrameworkCore", LogEventLevel.Information)
                 .Enrich.FromLogContext()
+                // .WriteTo.File("logs\\log.txt", rollingInterval: RollingInterval.Day, outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj} {NewLine}{Exception}")
                 .WriteTo.Console(outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj} {NewLine}{Exception}")
                 .CreateLogger();
 
+            Serilog.ILogger logger = Log.Logger;
             builder.Logging.ClearProviders();
             builder.Logging.AddSerilog(logger);
+            builder.Host.UseSerilog();
         }
 
         var app = builder.Build();
@@ -34,9 +39,6 @@ class Program
             {
                 app.UseSwagger();
                 app.UseSwaggerUI();
-
-
-
                 app.UseSerilogRequestLogging();
             }
 
@@ -56,6 +58,8 @@ class Program
 
         var services = builder.Services;
 
+        services.AddAutoMapper(typeof(MappingConfig));
+
         services.AddDbContext<ModelAppContext>(options =>
         {
             options.UseMySql(builder.Configuration.GetConnectionString("ModelAppContext"), new MySqlServerVersion(new Version(8, 0, 30)));
@@ -65,9 +69,10 @@ class Program
 
         services.AddControllers(options =>
         {
-            options.ReturnHttpNotAcceptable = true;
-
-        }).AddNewtonsoftJson().AddXmlDataContractSerializerFormatters();
+            // options.ReturnHttpNotAcceptable = true;
+        })
+        .AddNewtonsoftJson()
+        .AddXmlDataContractSerializerFormatters();
 
         // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
         services.AddEndpointsApiExplorer();
