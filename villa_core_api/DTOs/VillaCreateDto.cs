@@ -11,6 +11,8 @@ public class VillaCreateDto
     [MaxLength(255, ErrorMessage = "Tên Villa tối đa 255 ký tự")]
     // [RegularExpression(@"Villa", ErrorMessage = "Tên Villa phải chứa chuỗi Villa")]
     public string Name { set; get; }
+
+    public string Description {set; get;}
     
     [Required]
     [Range(1, 1000, ErrorMessage = "Diện tích Villa phải từ 1 đến 100")]
@@ -19,4 +21,12 @@ public class VillaCreateDto
     [Required]
     [Range(1, 100, ErrorMessage = "Số người ở Villa phải từ 1 đến 100")]
     public int Occupancy {set; get;}
+
+    [DefaultValue(0)]
+    public int Rate {set; get;}
+
+    public string ImageUrl {set; get;}
+
+    [DefaultValue("")]
+    public string Amentity {set; get;}
 }

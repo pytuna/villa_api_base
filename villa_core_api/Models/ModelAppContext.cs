@@ -8,11 +8,13 @@ public class ModelAppContext : DbContext{
     public ModelAppContext(DbContextOptions<ModelAppContext> options, ILoggerFactory loggerFactory) : base(options){
         _loggerFactory = loggerFactory;
     }
+    
+    // Default Logger
+    // public static readonly ILoggerFactory loggerFactory = LoggerFactory.Create(builder => { 
+    //     builder.AddFilter(DbLoggerCategory.Query.Name, LogLevel.Information);
+    //     builder.AddConsole(); 
+    // }); 
 
-    public static readonly ILoggerFactory loggerFactory = LoggerFactory.Create(builder => { 
-        builder.AddFilter(DbLoggerCategory.Query.Name, LogLevel.Information);
-        builder.AddConsole(); 
-    }); 
     public DbSet<Villa> Villas { get; set; }
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
