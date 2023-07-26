@@ -3,7 +3,6 @@ using VillaApi.Services;
 using VillaApi.DTOs;
 using Swashbuckle.AspNetCore.Annotations;
 using Microsoft.AspNetCore.JsonPatch;
-using Microsoft.AspNetCore.Mvc.ModelBinding;
 
 namespace VillaApi.Controllers;
 

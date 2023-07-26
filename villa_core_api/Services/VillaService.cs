@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Mvc.ModelBinding;
 using System.ComponentModel.DataAnnotations;
 using Microsoft.EntityFrameworkCore;
 using AutoMapper;
+using VillaApi.Repositories;
 
 namespace VillaApi.Services;
 
@@ -13,39 +14,24 @@ public class VillaService
 {
     private readonly ModelAppContext _context;
     private readonly IMapper _mapper;
+    private readonly VillaRepository _repository;
     public VillaService(ModelAppContext context, IMapper mapper)
     {
         _context = context;
         _mapper = mapper;
+        _repository = new VillaRepository(_context);
     }
 
     public async Task<List<VillaDto>> GetVillas(int limit, int offset)
     {
-        IEnumerable<Villa> villas = await _context.Villas.Skip(limit * offset).Take(limit).ToListAsync();
-
-        // var villaDtos = villas.Select(villa =>
-        // {
-        //     return new VillaDto()
-        //     {
-        //         Id = villa.Id,
-        //         Name = villa.Name,
-        //         Sqft = villa.Sqft,
-        //         Occupancy = villa.Occupancy,
-        //         Description = villa.Description,
-        //         ImageUrl = villa.ImageUrl,
-        //         Amentity = villa.Amentity,
-        //         Rate = villa.Rate
-        //     };
-        // }).ToList();
-
+        var villas = await _repository.GetAllVillasAsync(limit, offset);
         var villaDtos = _mapper.Map<List<VillaDto>>(villas);
-
         return villaDtos;
     }
 
     public async Task<VillaDto?> GetVillaById(int id)
     {
-        var villa = await _context.Villas.FindAsync(id);
+        Villa? villa = await _repository.GetVillaByIdAsync(v => v.Id == id);
 
         if (villa == null)
         {
@@ -67,9 +53,10 @@ public class VillaService
         else return true;
     }
 
-    public async Task<VillaDto> CreateVilla(VillaCreateDto villaDto)
+    public async Task CreateVilla(VillaCreateDto villaDto)
     {
-        var villa = new Villa()
+
+        Villa villa = new Villa()
         {
             Name = villaDto.Name,
             CreatedAt = DateTime.Now,
@@ -84,8 +71,18 @@ public class VillaService
 
         await _context.Villas.AddAsync(villa);
         await _context.SaveChangesAsync();
-        var villaCreated = _mapper.Map<VillaDto>(villa);
-        return villaCreated;
+        // var villaCreated = new VillaDto{
+        //     Id = villa.Id,
+        //     Name = villa.Name,
+        //     Sqft = villa.Sqft,
+        //     Occupancy = villa.Occupancy,
+        //     Description = villa.Description,
+        //     ImageUrl = villa.ImageUrl,
+        //     Amentity = villa.Amentity,
+        //     Rate = villa.Rate
+        // };
+        // System.Console.WriteLine("\n\n DKMDKMDKMDKMDKM");
+        // return villaCreated;
     }
 
     public async Task<bool> DeleteVilla(int id)

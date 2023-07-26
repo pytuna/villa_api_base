@@ -5,6 +5,8 @@ using VillaApi.Services;
 using VillaApi.Models;
 using System.Reflection;
 using VillaApi.Config;
+using VillaApi.Interfaces;
+using VillaApi.Repositories;
 
 namespace VillaApi;
 
@@ -65,14 +67,15 @@ class Program
             options.UseMySql(builder.Configuration.GetConnectionString("ModelAppContext"), new MySqlServerVersion(new Version(8, 0, 30)));
         });
 
+        services.AddScoped<IVillaRepository, VillaRepository>();
+
         services.AddScoped<VillaService>();
 
         services.AddControllers(options =>
         {
             // options.ReturnHttpNotAcceptable = true;
         })
-        .AddNewtonsoftJson()
-        .AddXmlDataContractSerializerFormatters();
+        .AddNewtonsoftJson();
 
         // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
         services.AddEndpointsApiExplorer();
