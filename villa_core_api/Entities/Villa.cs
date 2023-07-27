@@ -3,7 +3,7 @@ using System.ComponentModel;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
-namespace VillaApi.Models;
+namespace VillaApi.Entities;
 
 public class Villa
 {

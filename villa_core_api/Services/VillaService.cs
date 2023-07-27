@@ -1,116 +1,124 @@
 using Microsoft.AspNetCore.Mvc;
-using VillaApi.Models;
+using VillaApi.Entities;
 using VillaApi.DTOs;
 using Microsoft.AspNetCore.JsonPatch;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
 using System.ComponentModel.DataAnnotations;
 using Microsoft.EntityFrameworkCore;
 using AutoMapper;
+using VillaApi.Repositories;
+using VillaApi.Interfaces;
 
 namespace VillaApi.Services;
 
 public class VillaService
 {
-    private readonly ModelAppContext _context;
     private readonly IMapper _mapper;
-    public VillaService(ModelAppContext context, IMapper mapper)
+    private readonly IVillaRepository _repository;
+    public VillaService( IMapper mapper, IVillaRepository repository)
     {
-        _context = context;
         _mapper = mapper;
+        _repository = repository;
     }
 
-    public async Task<List<VillaDto>> GetVillas(int limit, int offset)
+    public async Task<List<VillaDto>> GetVillasAsync(int limit, int offset)
     {
-        IEnumerable<Villa> villas = await _context.Villas.Skip(limit * offset).Take(limit).ToListAsync();
-
-        // var villaDtos = villas.Select(villa =>
-        // {
-        //     return new VillaDto()
-        //     {
-        //         Id = villa.Id,
-        //         Name = villa.Name,
-        //         Sqft = villa.Sqft,
-        //         Occupancy = villa.Occupancy,
-        //         Description = villa.Description,
-        //         ImageUrl = villa.ImageUrl,
-        //         Amentity = villa.Amentity,
-        //         Rate = villa.Rate
-        //     };
-        // }).ToList();
-
-        var villaDtos = _mapper.Map<List<VillaDto>>(villas);
-
-        return villaDtos;
-    }
-
-    public async Task<VillaDto?> GetVillaById(int id)
-    {
-        var villa = await _context.Villas.FindAsync(id);
-
-        if (villa == null)
+        try
         {
-            return null;
+            var villas = await _repository.GetAllAsync(limit, offset);
+            var villaDtos = _mapper.Map<List<VillaDto>>(villas);
+            return villaDtos;
         }
-        else
+        catch (System.Exception)
         {
-            return _mapper.Map<VillaDto>(villa);
+
+            throw;
+        }
+    }
+
+    public async Task<VillaDto?> GetVillaByIdAsync(int id)
+    {
+        try
+        {
+            Villa? villa = await _repository.GetOneAsync(v => v.Id == id);
+
+            if (villa == null)
+            {
+                return null;
+            }
+            else
+            {
+                return _mapper.Map<VillaDto>(villa);
+            }
+        }
+        catch (System.Exception)
+        {
+
+            throw;
         }
     }
 
     public async Task<bool> CheckVillaNameExist(string name)
     {
-        var query = from Villas in _context.Villas
-                    where Villas.Name.ToLower() == name.ToLower()
-                    select Villas;
-        var villa = await query.FirstOrDefaultAsync();
+        var villa = await _repository.GetOneAsync(v => v.Name == name);
+        // var villa = await query.FirstOrDefaultAsync();
         if (villa == null) return false;
         else return true;
     }
 
-    public async Task<VillaDto> CreateVilla(VillaCreateDto villaDto)
+    public async Task<VillaDto> CreateVillaAsync(VillaCreateDto villaDto)
     {
-        var villa = new Villa()
-        {
-            Name = villaDto.Name,
-            CreatedAt = DateTime.Now,
-            UpdatedAt = DateTime.Now,
-            Sqft = villaDto.Sqft,
-            Occupancy = villaDto.Occupancy,
-            Description = villaDto.Description,
-            ImageUrl = villaDto.ImageUrl,
-            Amentity = villaDto.Amentity,
-            Rate = villaDto.Rate
-        };
 
-        await _context.Villas.AddAsync(villa);
-        await _context.SaveChangesAsync();
+        Villa villa = _mapper.Map<Villa>(villaDto);
+        villa.CreatedAt = DateTime.Now;
+        villa.UpdatedAt = DateTime.Now;
+
+        await _repository.AddAsync(villa);
         var villaCreated = _mapper.Map<VillaDto>(villa);
         return villaCreated;
     }
 
-    public async Task<bool> DeleteVilla(int id)
+    public async Task<bool> DeleteVillaAsync(int id)
     {
-        var villa = await _context.Villas.FirstOrDefaultAsync(v => v.Id == id);
-        if (villa == null) return false;
-        _context.Villas.Remove(villa);
-        await _context.SaveChangesAsync();
-        return true;
+        try
+        {
+            var villa = await _repository.GetOneAsync(v => v.Id == id);
+            if (villa == null) return false;
+            await _repository.DeleteAsync(villa);
+            return true;
+        }
+        catch (System.Exception)
+        {
+
+            throw;
+        }
     }
 
-    public async Task<bool> UpdatedVilla(int id, VillaCreateDto villaDto)
+    public async Task<bool> UpdatedVillaAsyncc(int id, VillaCreateDto villaDto)
     {
-        var villa = await _context.Villas.FirstOrDefaultAsync(v => v.Id == id);
-        if (villa == null) return false;
+        try
+        {
+            var villa = await _repository.GetOneAsync(v => v.Id == id);
 
-        _mapper.Map(villaDto, villa);
-        villa.UpdatedAt = DateTime.Now;
-        await _context.SaveChangesAsync();
-        return true;
+            if (villa == null) return false;
+
+            _mapper.Map(villaDto, villa);
+
+            villa.UpdatedAt = DateTime.Now;
+            await _repository.UpdateAsync(villa);
+            return true;
+        }
+        catch (System.Exception)
+        {
+
+            throw;
+        }
     }
 
     public async Task<bool> UpdatedDynamicFieldVilla(int id, JsonPatchDocument<VillaCreateDto> patchVillaDto, ModelStateDictionary ModelState)
     {
-        var villa = await _context.Villas.FirstOrDefaultAsync(v => v.Id == id);
+        var villa = await _repository.GetOneAsync(v => v.Id == id);
+
         // _context.Villas.AsNoTracking(); Không track sự thay đổi của villa nên savechange không thay đổi
         if (villa == null) return false;
         var villaCreateDto = new VillaCreateDto()
@@ -139,10 +147,10 @@ public class VillaService
             }
             return false;
         }
+
         _mapper.Map(villaCreateDto, villa);
-        villa.UpdatedAt = DateTime.Now;
-        await _context.SaveChangesAsync();
-        
+
+        await _repository.UpdateAsync(villa);
         return true;
     }
 }

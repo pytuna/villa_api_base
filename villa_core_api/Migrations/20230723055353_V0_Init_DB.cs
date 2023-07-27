@@ -1,7 +1,7 @@
 ﻿using System;
 using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Migrations;
-using VillaApi.Models;
+using VillaApi.Entities;
 
 #nullable disable
 
