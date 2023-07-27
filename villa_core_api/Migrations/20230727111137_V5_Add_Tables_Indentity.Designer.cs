@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using VillaApi.Entities;
 
@@ -10,9 +11,11 @@ using VillaApi.Entities;
 namespace villa_core_api.Migrations
 {
     [DbContext(typeof(ModelAppContext))]
-    partial class ModelAppContextModelSnapshot : ModelSnapshot
+    [Migration("20230727111137_V5_Add_Tables_Indentity")]
+    partial class V5_Add_Tables_Indentity
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
