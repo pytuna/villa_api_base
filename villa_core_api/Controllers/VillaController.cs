@@ -6,6 +6,7 @@ using VillaApi.DTOs;
 using Swashbuckle.AspNetCore.Annotations;
 using Microsoft.AspNetCore.JsonPatch;
 using System.Net;
+using Microsoft.AspNetCore.Authorization;
 
 namespace VillaApi.Controllers;
 
@@ -27,6 +28,7 @@ public class VillaController : ControllerBase
 
     /// <param name="limit">Số lượng Villa cần lấy</param>
     /// <param name="offset">Vị trí bắt đầu lấy</param>
+    [Authorize]
     [SwaggerOperation(Summary = "Lấy danh sách Villa")]
     [HttpGet(Name = "GetVillas")]
     [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(IEnumerable<VillaDto>))]

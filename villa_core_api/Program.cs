@@ -13,6 +13,8 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
+using Swashbuckle.AspNetCore.Filters;
+using Microsoft.OpenApi.Models;
 
 namespace VillaApi;
 
@@ -52,6 +54,7 @@ class Program
 
             app.UseHttpsRedirection();
 
+            app.UseAuthentication();
             app.UseAuthorization();
 
             app.MapControllers();
@@ -73,15 +76,18 @@ class Program
             .AddDefaultTokenProviders();
 
         services
-            .AddAuthentication(options=>{
+            .AddAuthentication(options =>
+            {
                 options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
                 options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
                 options.DefaultScheme = JwtBearerDefaults.AuthenticationScheme;
-            }).AddJwtBearer(options=>{
+            }).AddJwtBearer(options =>
+            {
                 options.SaveToken = true;
                 options.RequireHttpsMetadata = false;
 
-                options.TokenValidationParameters = new TokenValidationParameters(){
+                options.TokenValidationParameters = new TokenValidationParameters()
+                {
                     ValidateIssuer = true,
                     ValidateAudience = true,
                     ValidAudience = builder.Configuration["JWT:ValidAudience"],
@@ -89,24 +95,58 @@ class Program
                     IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["JWT:Secret"]))
                 };
             });
+        
+        // config identity options
+        services.Configure<IdentityOptions>(options =>
+        {
+            // Password settings.
+            options.Password.RequireDigit = false;
+            options.Password.RequireLowercase = false;
+            options.Password.RequiredLength = 3;
+            options.Password.RequireNonAlphanumeric = false;
+            options.Password.RequireUppercase = false;
+            options.Password.RequiredUniqueChars = 1;
+
+            // Lockout settings.
+            options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(5);
+            options.Lockout.MaxFailedAccessAttempts = 5;
+            options.Lockout.AllowedForNewUsers = true;
+
+            // User settings.
+            options.User.AllowedUserNameCharacters =
+            "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-._@+";
+            options.User.RequireUniqueEmail = true;
+        });
 
         services.AddDbContext<ModelAppContext>(options =>
         {
             options.UseMySql(builder.Configuration.GetConnectionString("ModelAppContext"), new MySqlServerVersion(new Version(8, 0, 30)));
         });
 
-        services.AddScoped<IVillaRepository, VillaRepository>();
-        services.AddScoped<IVillaNumberRepository, VillaNumberRepository>();
+        /* 
+            Add repositories
+         */
+        {
+            services.AddScoped<IVillaRepository, VillaRepository>();
+            services.AddScoped<IVillaNumberRepository, VillaNumberRepository>();
+            services.AddScoped<IUserRepository, UserRepository>();
+        }
 
-        services.AddScoped<VillaService>();
-        services.AddScoped<VillaNumberService>();
+        /* 
+            Add services
+        */
+        {
+            services.AddScoped<VillaService>();
+            services.AddScoped<VillaNumberService>();
+        }
 
         services.AddControllers(options =>
         {
             // options.ReturnHttpNotAcceptable = true;
         })
-        .AddNewtonsoftJson(options => {
-            
+        .AddNewtonsoftJson(options =>
+        {
+
             options.SerializerSettings.NullValueHandling = NullValueHandling.Ignore;
         });
 
@@ -119,6 +159,18 @@ class Program
             System.Console.WriteLine($"{Assembly.GetExecutingAssembly().GetName().Name}.xml");
             var xmlFilename = $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";
             options.IncludeXmlComments(Path.Combine(AppContext.BaseDirectory, xmlFilename));
+
+            options.OperationFilter<SecurityRequirementsOperationFilter>(true, "Bearer");
+            options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+            {
+                Description = "Standard Authorization header using the Bearer scheme (JWT). Example: \"bearer {token}\"",
+                Name = "Authorization",
+                In = ParameterLocation.Header,
+                Type = SecuritySchemeType.Http,
+                BearerFormat = "JWT",
+                Scheme = "Bearer"
+            });
+
         });
 
 
