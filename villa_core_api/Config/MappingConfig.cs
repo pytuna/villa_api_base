@@ -1,6 +1,6 @@
 namespace VillaApi.Config;
 using AutoMapper;
-using VillaApi.Models;
+using VillaApi.Entities;
 using VillaApi.DTOs;
 public class MappingConfig:Profile
 {
@@ -9,6 +9,11 @@ public class MappingConfig:Profile
         CreateMap<VillaDto, Villa>();
 
         CreateMap<Villa, VillaCreateDto>().ReverseMap();
-        CreateMap<VillaCreateDto, Villa>().ReverseMap();
+
+        CreateMap<VillaNumber, VillaNumberDto>().ReverseMap();
+        CreateMap<VillaNumber, VillaNumberCreateDto>().ReverseMap();
+        CreateMap<VillaNumber, VillaNumberUpdateDto>().ReverseMap();
+
+
     }
 }

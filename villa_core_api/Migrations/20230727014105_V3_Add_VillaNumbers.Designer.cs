@@ -11,8 +11,8 @@ using VillaApi.Entities;
 namespace villa_core_api.Migrations
 {
     [DbContext(typeof(ModelAppContext))]
-    [Migration("20230723055353_V0_Init_DB")]
-    partial class V0_Init_DB
+    [Migration("20230727014105_V3_Add_VillaNumbers")]
+    partial class V3_Add_VillaNumbers
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -28,13 +28,31 @@ namespace villa_core_api.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int");
 
+                    b.Property<string>("Amentity")
+                        .HasColumnType("longtext");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime(6)");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("ImageUrl")
+                        .HasColumnType("longtext");
 
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(255)
                         .HasColumnType("varchar(255)");
+
+                    b.Property<int>("Occupancy")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Rate")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Sqft")
+                        .HasColumnType("int");
 
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("datetime(6)");
@@ -42,6 +60,25 @@ namespace villa_core_api.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("Villas");
+                });
+
+            modelBuilder.Entity("VillaApi.Entities.VillaNumber", b =>
+                {
+                    b.Property<int>("VillaNo")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("SpecialDetail")
+                        .HasColumnType("longtext");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.HasKey("VillaNo");
+
+                    b.ToTable("VillaNumbers");
                 });
 #pragma warning restore 612, 618
         }

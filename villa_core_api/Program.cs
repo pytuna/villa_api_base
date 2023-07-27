@@ -2,11 +2,13 @@ using Microsoft.EntityFrameworkCore;
 using Serilog;
 using Serilog.Events;
 using VillaApi.Services;
-using VillaApi.Models;
+using VillaApi.Entities;
 using System.Reflection;
 using VillaApi.Config;
 using VillaApi.Interfaces;
 using VillaApi.Repositories;
+using Newtonsoft.Json.Serialization;
+using Newtonsoft.Json;
 
 namespace VillaApi;
 
@@ -68,14 +70,19 @@ class Program
         });
 
         services.AddScoped<IVillaRepository, VillaRepository>();
+        services.AddScoped<IVillaNumberRepository, VillaNumberRepository>();
 
         services.AddScoped<VillaService>();
+        services.AddScoped<VillaNumberService>();
 
         services.AddControllers(options =>
         {
             // options.ReturnHttpNotAcceptable = true;
         })
-        .AddNewtonsoftJson();
+        .AddNewtonsoftJson(options => {
+            
+            options.SerializerSettings.NullValueHandling = NullValueHandling.Ignore;
+        });
 
         // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
         services.AddEndpointsApiExplorer();

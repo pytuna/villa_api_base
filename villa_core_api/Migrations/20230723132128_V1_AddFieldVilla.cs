@@ -1,5 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore.Migrations;
-using VillaApi.Models;
+using VillaApi.Entities;
 
 #nullable disable
 

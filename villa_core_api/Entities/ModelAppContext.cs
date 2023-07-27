@@ -1,7 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 
 #nullable disable
-namespace VillaApi.Models;
+namespace VillaApi.Entities;
 
 public class ModelAppContext : DbContext{
     private readonly ILoggerFactory _loggerFactory;  
@@ -16,6 +16,8 @@ public class ModelAppContext : DbContext{
     // }); 
 
     public DbSet<Villa> Villas { get; set; }
+    public DbSet<VillaNumber> VillaNumbers { get; set; }
+
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
@@ -26,5 +28,10 @@ public class ModelAppContext : DbContext{
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
+
+        modelBuilder.Entity<Villa>(entity =>{
+            entity.HasIndex(e => e.Name).IsUnique();
+            
+        });
     }
 }

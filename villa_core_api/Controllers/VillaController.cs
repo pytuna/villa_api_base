@@ -1,8 +1,11 @@
 using Microsoft.AspNetCore.Mvc;
 using VillaApi.Services;
+using VillaApi.Models;
+
 using VillaApi.DTOs;
 using Swashbuckle.AspNetCore.Annotations;
 using Microsoft.AspNetCore.JsonPatch;
+using System.Net;
 
 namespace VillaApi.Controllers;
 
@@ -11,6 +14,7 @@ namespace VillaApi.Controllers;
 [Produces("application/json")]
 public class VillaController : ControllerBase
 {
+    protected readonly ApiResponse _apiResponse;
     private readonly VillaService _villaService;
     private readonly ILogger<VillaController> _logger;
 
@@ -18,6 +22,7 @@ public class VillaController : ControllerBase
     {
         _villaService = villaService;
         _logger = logger;
+        _apiResponse = new();
     }
 
     /// <param name="limit">Số lượng Villa cần lấy</param>
@@ -25,34 +30,55 @@ public class VillaController : ControllerBase
     [SwaggerOperation(Summary = "Lấy danh sách Villa")]
     [HttpGet(Name = "GetVillas")]
     [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(IEnumerable<VillaDto>))]
-    public async Task<ActionResult<IEnumerable<VillaDto>>> Get([FromQuery] int limit = 5, [FromQuery] int offset = 0)
+    [ProducesResponseType(StatusCodes.Status500InternalServerError, Type = typeof(ApiResponse))]
+    public async Task<ActionResult<IEnumerable<VillaDto>>> GetAll([FromQuery] int limit = 5, [FromQuery] int offset = 0)
     {
-        var villas = await _villaService.GetVillas(limit, offset);
-        return Ok(villas);
+        try
+        {
+            var villas = await _villaService.GetVillasAsync(limit, offset);
+            _apiResponse.Success(villas);
+            return Ok(_apiResponse);
+        }
+        catch (Exception e)
+        {
+            _apiResponse.PushErrors(e.Message);
+            _apiResponse.Fail(HttpStatusCode.InternalServerError);
+            return StatusCode((int)_apiResponse.StatusCode, _apiResponse);
+        }
     }
 
     /// <param name="id">Id của Villa</param>
     [SwaggerOperation(Summary = "Lấy Villa theo Id")]
     [HttpGet("{id:int}", Name = "GetVillaById")]
     [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(VillaDto))]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
-    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound, Type = typeof(ApiResponse))]
+    [ProducesResponseType(StatusCodes.Status400BadRequest, Type = typeof(ApiResponse))]
     public async Task<ActionResult<VillaDto>> GetById(int id)
     {
-        if (id == 0)
+        try
         {
-            _logger.LogError("Id không được bằng 0");
-            return BadRequest();
+            if (id == 0)
+            {
+                _apiResponse.Fail(HttpStatusCode.BadRequest);
+                return BadRequest(_apiResponse);
+            }
+            var villa = await _villaService.GetVillaByIdAsync(id);
+            if (villa == null)
+            {
+                _apiResponse.Fail(HttpStatusCode.NotFound);
+                return NotFound(_apiResponse);
+            }
+            else
+            {
+                _apiResponse.Success(villa);
+                return Ok(_apiResponse);
+            }
         }
-        var villa = await _villaService.GetVillaById(id);
-        if (villa == null)
+        catch (Exception e)
         {
-            return NotFound();
-        }
-        else
-        {
-            _logger.LogInformation("Lấy Villa thành công");
-            return Ok(villa);
+            _apiResponse.PushErrors(e.Message);
+            _apiResponse.Fail(HttpStatusCode.InternalServerError);
+            return StatusCode((int)_apiResponse.StatusCode, _apiResponse);
         }
     }
 
@@ -60,46 +86,71 @@ public class VillaController : ControllerBase
     [SwaggerOperation(Summary = "Tạo Villa mới")]
     [HttpPost(Name = "CreateVilla")]
     [ProducesResponseType(StatusCodes.Status201Created, Type = typeof(VillaCreateDto))]
-    [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    public async Task<ActionResult<VillaDto>> Post([FromBody] VillaCreateDto villaCreateDto)
+    [ProducesResponseType(StatusCodes.Status400BadRequest, Type = typeof(ApiResponse))]
+    public async Task<ActionResult<VillaDto>> CreateVilla([FromBody] VillaCreateDto villaCreateDto)
     {
-
-        if (villaCreateDto == null)
+        try
         {
-            return BadRequest();
+            if (villaCreateDto == null)
+            {
+                _apiResponse.Fail(HttpStatusCode.BadRequest);
+                return BadRequest(_apiResponse);
+            }
+            if (await _villaService.CheckVillaNameExist(villaCreateDto.Name))
+            {
+                _apiResponse.PushErrors("Villa đã tồn tại");
+                _apiResponse.Fail(HttpStatusCode.BadRequest);
+                return BadRequest(_apiResponse);
+            }
+            var villa = await _villaService.CreateVillaAsync(villaCreateDto);
+            // dùng để tạo tài nguyên mới mà action GetById trả về
+            // ví dụ khi tạo thành công sẽ phát sinh trong Header response Location: https://localhost:7142/api/villa/161
+            _apiResponse.Success(villa);
+            return CreatedAtAction(nameof(GetById), new { id = villa.Id }, _apiResponse);
+            // return CreatedAtRoute("GetVillaById", new { id = villa.Id }, villa);
         }
-        if (await _villaService.CheckVillaNameExist(villaCreateDto.Name))
+        catch (Exception e)
         {
-            ModelState.AddModelError("CustomError", "Villa đã tồn tại");
-            return BadRequest(ModelState);
+            _apiResponse.PushErrors(e.Message);
+            _apiResponse.Fail(HttpStatusCode.InternalServerError);
+            return StatusCode((int)_apiResponse.StatusCode, _apiResponse);
         }
-        var villa = _villaService.CreateVilla(villaCreateDto);
-        // dùng để tạo tài nguyên mới mà action GetById trả về
-        // ví dụ khi tạo thành công sẽ phát sinh trong Header response Location: https://localhost:7142/api/villa/161
-        return CreatedAtAction(nameof(GetById), new { id = villa.Id }, villa);
-        // return CreatedAtRoute("GetVillaById", new { id = villa.Id }, villa);
     }
 
     /// <param name="id">Id của Villa</param>
     [SwaggerOperation(Summary = "Xóa Villa theo Id")]
     [HttpDelete("{id:int}", Name = "DeletaVillaById")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
-    [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    public async Task<ActionResult> DeleteById(int id)
+    [ProducesResponseType(StatusCodes.Status404NotFound, Type = typeof(ApiResponse))]
+    [ProducesResponseType(StatusCodes.Status400BadRequest, Type = typeof(ApiResponse))]
+    public async Task<ActionResult> DeleteVilla([FromRoute]int id)
     {
-        if (id <= 0)
+        try
         {
-            return BadRequest();
+            if (id <= 0)
+            {
+                _apiResponse.PushErrors("Id không được bằng 0");
+                _apiResponse.Fail(HttpStatusCode.BadRequest);
+                return BadRequest(_apiResponse);
+            }
+            var isVillaDeleted = await _villaService.DeleteVillaAsync(id);
+            if (isVillaDeleted)
+            {
+                _apiResponse.Success(null, HttpStatusCode.NoContent);
+                return Ok(_apiResponse);
+            }
+            else
+            {
+                _apiResponse.PushErrors("Villa không tồn tại");
+                _apiResponse.Fail(HttpStatusCode.NotFound);
+                return NotFound(_apiResponse);
+            }
         }
-        var isVillaDeleted = await _villaService.DeleteVilla(id);
-        if (isVillaDeleted)
+        catch (Exception e)
         {
-            return NoContent();
-        }
-        else
-        {
-            return NotFound();
+            _apiResponse.PushErrors(e.Message);
+            _apiResponse.Fail(HttpStatusCode.InternalServerError);
+            return StatusCode((int)_apiResponse.StatusCode, _apiResponse);
         }
     }
 
@@ -109,56 +160,106 @@ public class VillaController : ControllerBase
     [SwaggerOperation(Summary = "Cập nhật Villa theo Id")]
     [HttpPut("{id:int}", Name = "UpdateVillaById")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
-    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound, Type = typeof(ApiResponse))]
+    [ProducesResponseType(StatusCodes.Status400BadRequest, Type = typeof(ApiResponse))]
     public async Task<ActionResult> UpdateById([FromRoute] int id, [FromBody] VillaCreateDto villaCreateDto)
     {
-        if (id <= 0 || villaCreateDto == null)
+        try
         {
-            return BadRequest();
+            if (id <= 0 || villaCreateDto == null)
+            {
+                _apiResponse.IsSuccess = false;
+                _apiResponse.StatusCode = HttpStatusCode.BadRequest;
+                _apiResponse.PushErrors("Id không được bằng 0");   
+                return BadRequest(_apiResponse);
+            }
+            if (await _villaService.CheckVillaNameExist(villaCreateDto.Name))
+            {
+                _apiResponse.IsSuccess = false;
+                _apiResponse.StatusCode = HttpStatusCode.BadRequest;
+                _apiResponse.PushErrors("Villa đã tồn tại");
+                return BadRequest(_apiResponse);
+            }
+            var isVillaUpdated = await _villaService.UpdatedVillaAsyncc(id, villaCreateDto);
+            if (isVillaUpdated)
+            {
+                _apiResponse.IsSuccess = true;
+                _apiResponse.StatusCode = HttpStatusCode.NoContent;
+                return Ok(_apiResponse);
+            }
+            else
+            {
+                _apiResponse.IsSuccess = false;
+                _apiResponse.StatusCode = HttpStatusCode.NotFound;
+                _apiResponse.PushErrors("Không tìm thấy Villa cần cập nhật");
+                return NotFound(_apiResponse);
+            }
         }
-        if (await _villaService.CheckVillaNameExist(villaCreateDto.Name))
+        catch (Exception e)
         {
-            ModelState.AddModelError("CustomError", "Villa đã tồn tại");
-            return BadRequest(ModelState);
+            _apiResponse.IsSuccess = false;
+            _apiResponse.PushErrors(e.Message);
+            _apiResponse.StatusCode = HttpStatusCode.InternalServerError;
         }
-        var isVillaUpdated = await _villaService.UpdatedVilla(id, villaCreateDto);
-        if (isVillaUpdated)
-        {
-            return NoContent();
-        }
-        else
-        {
-            return NotFound();
-        }
+        return StatusCode((int)_apiResponse.StatusCode, _apiResponse);
     }
 
     [HttpPatch("{id:int}", Name = "UpdateDynamicFieldVillaById")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
-    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound, Type = typeof(ApiResponse))]
+    [ProducesResponseType(StatusCodes.Status400BadRequest, Type = typeof(ApiResponse))]
     public async Task<ActionResult> UpdateDynamicFieldById([FromRoute] int id, [FromBody] JsonPatchDocument<VillaCreateDto> villaUpdateDto)
     {
-        if (id <= 0 || villaUpdateDto == null)
+        try
         {
-            return BadRequest();
+            if (id <= 0 || villaUpdateDto == null)
+            {
+                _apiResponse.IsSuccess = false;
+                _apiResponse.StatusCode = HttpStatusCode.BadRequest;
+                _apiResponse.PushErrors("Id không được bằng 0");   
+                return BadRequest(_apiResponse);
+            }
+            VillaCreateDto villaDto = new();
+            villaUpdateDto.ApplyTo(villaDto);
+
+            if (villaDto.Name != "" && villaDto.Name != null &&  await _villaService.CheckVillaNameExist(villaDto.Name))
+            {
+                _apiResponse.IsSuccess = false;
+                _apiResponse.StatusCode = HttpStatusCode.BadRequest;
+                _apiResponse.PushErrors("Villa đã tồn tại");
+                return BadRequest(_apiResponse);
+            }
+
+            bool isVillaUpdated = await _villaService.UpdatedDynamicFieldVilla(id, villaUpdateDto, ModelState);
+
+            if (!ModelState.IsValid)
+            {
+                _apiResponse.IsSuccess = false;
+                _apiResponse.StatusCode = HttpStatusCode.BadRequest;
+                ModelState.Values.SelectMany(x => x.Errors).ToList().ForEach(x => _apiResponse.PushErrors(x.ErrorMessage));
+                return BadRequest(_apiResponse);
+            }
+
+            if (isVillaUpdated)
+            {
+                _apiResponse.IsSuccess = true;
+                _apiResponse.StatusCode = HttpStatusCode.NoContent;
+                return Ok(_apiResponse);
+            }
+            else
+            {
+                _apiResponse.IsSuccess = false;
+                _apiResponse.StatusCode = HttpStatusCode.NotFound;
+                _apiResponse.PushErrors("Không tìm thấy Villa cần cập nhật");
+                return NotFound(_apiResponse);
+            }
         }
-
-        bool isVillaUpdated = await _villaService.UpdatedDynamicFieldVilla(id, villaUpdateDto, ModelState);
-
-        if (!ModelState.IsValid)
+        catch (Exception e)
         {
-            return BadRequest(ModelState);
+            _apiResponse.IsSuccess = false;
+            _apiResponse.PushErrors(e.Message);
+            _apiResponse.StatusCode = HttpStatusCode.InternalServerError;
         }
-
-        if (isVillaUpdated)
-        {
-            return NoContent();
-        }
-        else
-        {
-
-            return NotFound(ModelState);
-        }
+        return StatusCode((int)_apiResponse.StatusCode, _apiResponse);
     }
 }
