@@ -13,6 +13,9 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
+using Swashbuckle.AspNetCore.Filters;
+using Microsoft.OpenApi.Models;
+using Microsoft.AspNetCore.Mvc;
 
 namespace VillaApi;
 
@@ -52,9 +55,16 @@ class Program
 
             app.UseHttpsRedirection();
 
+            app.UseRouting();
+            app.UseAuthentication();
             app.UseAuthorization();
+            
+            app.UseCors("open");
 
-            app.MapControllers();
+            app.UseEndpoints(enpoints =>
+            {
+                enpoints.MapControllers();
+            });
 
             app.Run();
         }
@@ -68,58 +78,48 @@ class Program
 
         services.AddAutoMapper(typeof(MappingConfig));
 
-        services.AddIdentity<ApplicationUser, IdentityRole>()
-            .AddEntityFrameworkStores<ModelAppContext>()
-            .AddDefaultTokenProviders();
-
-        services
-            .AddAuthentication(options=>{
-                options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
-                options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
-                options.DefaultScheme = JwtBearerDefaults.AuthenticationScheme;
-            }).AddJwtBearer(options=>{
-                options.SaveToken = true;
-                options.RequireHttpsMetadata = false;
-
-                options.TokenValidationParameters = new TokenValidationParameters(){
-                    ValidateIssuer = true,
-                    ValidateAudience = true,
-                    ValidAudience = builder.Configuration["JWT:ValidAudience"],
-                    ValidIssuer = builder.Configuration["JWT:ValidIssuer"],
-                    IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["JWT:Secret"]))
-                };
-            });
-
+        services.ConfigIdentity(builder);
+        
         services.AddDbContext<ModelAppContext>(options =>
         {
             options.UseMySql(builder.Configuration.GetConnectionString("ModelAppContext"), new MySqlServerVersion(new Version(8, 0, 30)));
         });
 
-        services.AddScoped<IVillaRepository, VillaRepository>();
-        services.AddScoped<IVillaNumberRepository, VillaNumberRepository>();
-
-        services.AddScoped<VillaService>();
-        services.AddScoped<VillaNumberService>();
-
-        services.AddControllers(options =>
+        /* 
+            Add repositories
+         */
         {
-            // options.ReturnHttpNotAcceptable = true;
-        })
-        .AddNewtonsoftJson(options => {
-            
-            options.SerializerSettings.NullValueHandling = NullValueHandling.Ignore;
-        });
+            services.AddScoped<IVillaRepository, VillaRepository>();
+            services.AddScoped<IVillaNumberRepository, VillaNumberRepository>();
+            services.AddScoped<IUserRepository, UserRepository>();
+        }
+
+        /* 
+            Add services
+        */
+        {
+            services.AddScoped<VillaService>();
+            services.AddScoped<VillaNumberService>();
+        }
+
+        // Hủy tự động validate model
+        // services.Configure<ApiBehaviorOptions>(options =>
+        // {
+        //     options.SuppressModelStateInvalidFilter = true;
+        // });
+
+        services
+            .AddControllers(options =>
+            {
+                // options.ReturnHttpNotAcceptable = true;
+            })
+            .AddNewtonsoftJson(options =>
+            {
+                options.SerializerSettings.NullValueHandling = NullValueHandling.Ignore;
+            });
 
         // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
-        services.AddEndpointsApiExplorer();
-        services.AddSwaggerGen((options) =>
-        {
-            options.SwaggerDoc("v1", new() { Title = "VillaApi", Version = "v1" });
-            options.EnableAnnotations();
-            System.Console.WriteLine($"{Assembly.GetExecutingAssembly().GetName().Name}.xml");
-            var xmlFilename = $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";
-            options.IncludeXmlComments(Path.Combine(AppContext.BaseDirectory, xmlFilename));
-        });
+        services.ConfigSwagger();
 
 
     }

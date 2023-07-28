@@ -28,7 +28,7 @@ public class VillaNumberController : ControllerBase
         _apiResponse = new();
 
     }
-    [HttpGet]
+    [HttpGet(Name = "GetVillaNumbers")]
     [ProducesResponseType(typeof(IEnumerable<VillaNumberDto>), (int)HttpStatusCode.OK)]
     public async Task<ActionResult<IEnumerable<VillaNumberDto>>> GetVillaNumbers([FromQuery] int limit = 5, [FromQuery] int offset = 0)
     {
@@ -75,7 +75,8 @@ public class VillaNumberController : ControllerBase
         }
     }
 
-    [HttpPost]
+    
+    [HttpPost(Name = "CreateVillaNumber")]
     [ProducesResponseType(typeof(VillaNumberDto), (int)HttpStatusCode.Created)]
     [ProducesResponseType(typeof(ApiResponse), (int)HttpStatusCode.BadRequest)]
     [ProducesResponseType(typeof(ApiResponse), (int)HttpStatusCode.InternalServerError)]
@@ -83,6 +84,17 @@ public class VillaNumberController : ControllerBase
     {
         try
         {
+            
+            if(!ModelState.IsValid){
+                ModelState.ToList().ForEach(x => {
+                   if(x.Value != null){
+                     _apiResponse.PushErrors(x.Value.Errors[0].ErrorMessage);
+                   }
+                });
+                _apiResponse.Fail(HttpStatusCode.BadRequest);
+                return BadRequest(_apiResponse);
+            }
+            
             var villa = await _villaService.GetVillaByIdAsync(villaNumberCreateDto.VillaID);
             if(villa == null){
                 _apiResponse.PushErrors("Villa not found");
