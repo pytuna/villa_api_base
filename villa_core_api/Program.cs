@@ -54,10 +54,16 @@ class Program
 
             app.UseHttpsRedirection();
 
+            app.UseRouting();
             app.UseAuthentication();
             app.UseAuthorization();
+            
+            app.UseCors("open");
 
-            app.MapControllers();
+            app.UseEndpoints(enpoints =>
+            {
+                enpoints.MapControllers();
+            });
 
             app.Run();
         }

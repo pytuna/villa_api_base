@@ -61,7 +61,7 @@ namespace VillaApi.Repositories
             var token = new JwtSecurityToken(
                 issuer: this._configuration["JWT:ValidIssuer"],
                 audience: this._configuration["JWT:ValidAudience"],
-                expires: DateTime.Now.AddHours(3),
+                expires: DateTime.Now.AddMinutes(1),
                 claims: authClaim,
                 signingCredentials: new SigningCredentials(new SymmetricSecurityKey(secret), SecurityAlgorithms.HmacSha256)
             );

@@ -43,7 +43,8 @@ namespace VillaApi.Controllers
                 return StatusCode((int)_apiResponse.StatusCode, _apiResponse);
             }
         }
-
+        
+        [AllowAnonymous]
         [HttpPost("SignIn")]
         public async Task<IActionResult> SignIn([FromBody] SignInModel signInModel)
         {
@@ -69,6 +70,11 @@ namespace VillaApi.Controllers
         [HttpPost("SignOut")]
         public async Task<IActionResult> SignOutVip()
         {
+            var httpContext = HttpContext;
+           
+            httpContext.Request.Headers.TryGetValue("Authorization", out var token);
+            System.Console.WriteLine(token);
+
             try
             {
                 await _userRepository.SignOutAsync();
