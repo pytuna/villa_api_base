@@ -75,6 +75,7 @@ public class VillaNumberController : ControllerBase
         }
     }
 
+    
     [HttpPost(Name = "CreateVillaNumber")]
     [ProducesResponseType(typeof(VillaNumberDto), (int)HttpStatusCode.Created)]
     [ProducesResponseType(typeof(ApiResponse), (int)HttpStatusCode.BadRequest)]
@@ -83,6 +84,16 @@ public class VillaNumberController : ControllerBase
     {
         try
         {
+            
+            if(!ModelState.IsValid){
+                ModelState.ToList().ForEach(x => {
+                   if(x.Value != null){
+                     _apiResponse.PushErrors(x.Value.Errors[0].ErrorMessage);
+                   }
+                });
+                _apiResponse.Fail(HttpStatusCode.BadRequest);
+                return BadRequest(_apiResponse);
+            }
             
             var villa = await _villaService.GetVillaByIdAsync(villaNumberCreateDto.VillaID);
             if(villa == null){

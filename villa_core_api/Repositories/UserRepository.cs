@@ -36,7 +36,10 @@ namespace VillaApi.Repositories
         public async Task<string> SignInAsync(SignInModel model)
         {
             ApplicationUser user = await this._userManager.FindByEmailAsync(model.Email);
-            
+            if(user == null){
+                return string.Empty;
+            }
+
             if(!await _userManager.IsEmailConfirmedAsync(user)){
                 return string.Empty;
             }
@@ -52,16 +55,18 @@ namespace VillaApi.Repositories
 
             var authClaim = new List<Claim>
             {
-                new Claim(ClaimTypes.Name, model.Email),
-                new Claim(ClaimTypes.NameIdentifier, model.Email),
+                new Claim(ClaimTypes.Name, user.Email),
+                new Claim(ClaimTypes.NameIdentifier, user.Email),
                 new Claim(JwtRegisteredClaimNames.Jti , Guid.NewGuid().ToString()),
+                new Claim(JwtRegisteredClaimNames.Sub, user.Email),
+                new Claim(JwtRegisteredClaimNames.Iat, DateTime.Now.ToString()),
             };
             var secret = Encoding.UTF8.GetBytes(this._configuration["JWT:Secret"]!);
 
             var token = new JwtSecurityToken(
                 issuer: this._configuration["JWT:ValidIssuer"],
                 audience: this._configuration["JWT:ValidAudience"],
-                expires: DateTime.Now.AddMinutes(1),
+                expires: DateTime.Now.AddHours(20),
                 claims: authClaim,
                 signingCredentials: new SigningCredentials(new SymmetricSecurityKey(secret), SecurityAlgorithms.HmacSha256)
             );

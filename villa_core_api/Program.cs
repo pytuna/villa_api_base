@@ -15,6 +15,7 @@ using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using Swashbuckle.AspNetCore.Filters;
 using Microsoft.OpenApi.Models;
+using Microsoft.AspNetCore.Mvc;
 
 namespace VillaApi;
 
@@ -77,53 +78,8 @@ class Program
 
         services.AddAutoMapper(typeof(MappingConfig));
 
-        services.AddIdentity<ApplicationUser, IdentityRole>()
-            .AddEntityFrameworkStores<ModelAppContext>()
-            .AddDefaultTokenProviders();
-
-        services
-            .AddAuthentication(options =>
-            {
-                options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
-                options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
-                options.DefaultScheme = JwtBearerDefaults.AuthenticationScheme;
-            }).AddJwtBearer(options =>
-            {
-                options.SaveToken = true;
-                options.RequireHttpsMetadata = false;
-
-                options.TokenValidationParameters = new TokenValidationParameters()
-                {
-                    ValidateIssuer = true,
-                    ValidateAudience = true,
-                    ValidAudience = builder.Configuration["JWT:ValidAudience"],
-                    ValidIssuer = builder.Configuration["JWT:ValidIssuer"],
-                    IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["JWT:Secret"]))
-                };
-            });
+        services.ConfigIdentity(builder);
         
-        // config identity options
-        services.Configure<IdentityOptions>(options =>
-        {
-            // Password settings.
-            options.Password.RequireDigit = false;
-            options.Password.RequireLowercase = false;
-            options.Password.RequiredLength = 3;
-            options.Password.RequireNonAlphanumeric = false;
-            options.Password.RequireUppercase = false;
-            options.Password.RequiredUniqueChars = 1;
-
-            // Lockout settings.
-            options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(5);
-            options.Lockout.MaxFailedAccessAttempts = 5;
-            options.Lockout.AllowedForNewUsers = true;
-
-            // User settings.
-            options.User.AllowedUserNameCharacters =
-            "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-._@+";
-            options.User.RequireUniqueEmail = true;
-        });
-
         services.AddDbContext<ModelAppContext>(options =>
         {
             options.UseMySql(builder.Configuration.GetConnectionString("ModelAppContext"), new MySqlServerVersion(new Version(8, 0, 30)));
@@ -146,38 +102,24 @@ class Program
             services.AddScoped<VillaNumberService>();
         }
 
-        services.AddControllers(options =>
-        {
-            // options.ReturnHttpNotAcceptable = true;
-        })
-        .AddNewtonsoftJson(options =>
-        {
+        // Hủy tự động validate model
+        // services.Configure<ApiBehaviorOptions>(options =>
+        // {
+        //     options.SuppressModelStateInvalidFilter = true;
+        // });
 
-            options.SerializerSettings.NullValueHandling = NullValueHandling.Ignore;
-        });
-
-        // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
-        services.AddEndpointsApiExplorer();
-        services.AddSwaggerGen((options) =>
-        {
-            options.SwaggerDoc("v1", new() { Title = "VillaApi", Version = "v1" });
-            options.EnableAnnotations();
-            System.Console.WriteLine($"{Assembly.GetExecutingAssembly().GetName().Name}.xml");
-            var xmlFilename = $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";
-            options.IncludeXmlComments(Path.Combine(AppContext.BaseDirectory, xmlFilename));
-
-            options.OperationFilter<SecurityRequirementsOperationFilter>(true, "Bearer");
-            options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+        services
+            .AddControllers(options =>
             {
-                Description = "Standard Authorization header using the Bearer scheme (JWT). Example: \"bearer {token}\"",
-                Name = "Authorization",
-                In = ParameterLocation.Header,
-                Type = SecuritySchemeType.Http,
-                BearerFormat = "JWT",
-                Scheme = "Bearer"
+                // options.ReturnHttpNotAcceptable = true;
+            })
+            .AddNewtonsoftJson(options =>
+            {
+                options.SerializerSettings.NullValueHandling = NullValueHandling.Ignore;
             });
 
-        });
+        // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
+        services.ConfigSwagger();
 
 
     }
